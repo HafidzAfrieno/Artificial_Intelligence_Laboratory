@@ -1,0 +1,12 @@
+project:
+  name: "LLM Chatbot"
+  category: "generative-ai"
+  type: "llm"
+
+model:
+  framework: "transformers"
+  huggingface_id: "google/flan-t5-base"
+
+training:
+  random_state: 42
+  test_size: 0.2

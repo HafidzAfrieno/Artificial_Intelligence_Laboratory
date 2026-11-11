@@ -1,0 +1,11 @@
+{
+  "project_name": "Heart Disease Prediction",
+  "project_slug": "{{ cookiecutter.project_name.lower().replace(' ', '-') }}",
+  "project_description": "AI-powered prediction application",
+  "author_name": "Your Name",
+  "category": "machine-learning",
+  "project_type": "classification",
+  "model_framework": "scikit-learn",
+  "huggingface_model_id": "",
+  "python_version": "3.11"
+}

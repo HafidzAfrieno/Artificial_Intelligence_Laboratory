@@ -1,0 +1,12 @@
+project:
+  name: "Image Classification"
+  category: "deep-learning"
+  type: "computer-vision"
+
+model:
+  framework: "pytorch"
+  huggingface_id: ""
+
+training:
+  random_state: 42
+  test_size: 0.2

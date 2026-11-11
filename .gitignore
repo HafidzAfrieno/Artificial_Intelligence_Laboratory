@@ -1,0 +1,50 @@
+# Environment
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Node
+node_modules/
+dist/
+build/
+
+# Machine Learning
+*.pkl
+*.joblib
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+
+# Data
+data/raw/
+data/processed/
+datasets/
+
+# Experiments
+.ipynb_checkpoints/
+.pytest_cache/
+.coverage
+wandb/
+mlruns/
+
+# Hugging Face cache
+.cache/
+huggingface_cache/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

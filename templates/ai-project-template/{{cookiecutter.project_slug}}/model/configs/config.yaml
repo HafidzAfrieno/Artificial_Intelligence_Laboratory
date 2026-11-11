@@ -1,0 +1,12 @@
+project:
+  name: "{{cookiecutter.project_name}}"
+  category: "{{cookiecutter.category}}"
+  type: "{{cookiecutter.project_type}}"
+
+model:
+  framework: "{{cookiecutter.model_framework}}"
+  huggingface_id: "{{cookiecutter.huggingface_model_id}}"
+
+training:
+  random_state: 42
+  test_size: 0.2
