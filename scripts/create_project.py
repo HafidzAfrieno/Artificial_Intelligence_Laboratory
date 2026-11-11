@@ -43,6 +43,199 @@ PROJECT_TYPES = {
 
 
 # ==========================================
+# DEPENDENCY CONFIGURATION
+# ==========================================
+
+BACKEND_DEPENDENCIES = [
+    "fastapi",
+    "uvicorn[standard]",
+    "pydantic",
+    "python-dotenv",
+    "huggingface_hub"
+]
+
+
+DEPENDENCY_CONFIG = {
+
+    # MACHINE LEARNING
+    "machine-learning": {
+
+        "classification": {
+            "scikit-learn": [
+                "numpy",
+                "pandas",
+                "scikit-learn",
+                "matplotlib",
+                "seaborn",
+                "joblib"
+            ],
+            "xgboost": [
+                "numpy",
+                "pandas",
+                "scikit-learn",
+                "xgboost",
+                "joblib"
+            ]
+        },
+
+        "regression": {
+            "scikit-learn": [
+                "numpy",
+                "pandas",
+                "scikit-learn",
+                "matplotlib",
+                "seaborn",
+                "joblib"
+            ],
+            "xgboost": [
+                "numpy",
+                "pandas",
+                "scikit-learn",
+                "xgboost",
+                "joblib"
+            ]
+        },
+
+        "clustering": {
+            "scikit-learn": [
+                "numpy",
+                "pandas",
+                "scikit-learn",
+                "matplotlib",
+                "seaborn",
+                "joblib"
+            ]
+        }
+    },
+
+    # DEEP LEARNING
+    "deep-learning": {
+
+        "computer-vision": {
+            "pytorch": [
+                "numpy",
+                "pandas",
+                "torch",
+                "torchvision",
+                "pillow",
+                "matplotlib"
+            ],
+            "tensorflow": [
+                "numpy",
+                "pandas",
+                "tensorflow",
+                "pillow",
+                "matplotlib"
+            ]
+        },
+
+        "nlp": {
+            "pytorch": [
+                "numpy",
+                "pandas",
+                "torch",
+                "transformers",
+                "datasets",
+                "tokenizers"
+            ],
+            "tensorflow": [
+                "numpy",
+                "pandas",
+                "tensorflow",
+                "transformers",
+                "datasets"
+            ]
+        },
+
+        "neural-networks": {
+            "pytorch": [
+                "numpy",
+                "torch",
+                "matplotlib"
+            ],
+            "tensorflow": [
+                "numpy",
+                "tensorflow",
+                "matplotlib"
+            ]
+        }
+    },
+
+    # GENERATIVE AI
+    "generative-ai": {
+
+        "llm": {
+            "transformers": [
+                "torch",
+                "transformers",
+                "accelerate",
+                "huggingface_hub",
+                "sentencepiece"
+            ]
+        },
+
+        "rag": {
+            "langchain": [
+                "langchain",
+                "langchain-community",
+                "langchain-text-splitters",
+                "sentence-transformers",
+                "faiss-cpu"
+            ]
+        },
+
+        "ai-agents": {
+            "langchain": [
+                "langchain",
+                "langchain-community",
+                "langgraph"
+            ]
+        },
+
+        "fine-tuning": {
+            "transformers": [
+                "torch",
+                "transformers",
+                "datasets",
+                "accelerate",
+                "peft",
+                "trl"
+            ]
+        }
+    },
+
+    # AI ENGINEERING
+    "ai-engineering": {
+
+        "mlops": {
+            "mlflow": [
+                "mlflow",
+                "scikit-learn",
+                "pandas",
+                "joblib"
+            ]
+        },
+
+        "data-pipeline": {
+            "pandas": [
+                "pandas",
+                "numpy",
+                "pyarrow"
+            ]
+        },
+
+        "model-monitoring": {
+            "evidently": [
+                "evidently",
+                "pandas",
+                "scikit-learn"
+            ]
+        }
+    }
+}
+
+
+# ==========================================
 # HELPER FUNCTIONS
 # ==========================================
 
@@ -106,6 +299,74 @@ def validate_project(args):
     return project_slug
 
 
+def get_dependencies(category, project_type, framework):
+    """
+    Mengambil dependency berdasarkan kategori,
+    tipe project, dan framework.
+    """
+
+    try:
+        dependencies = DEPENDENCY_CONFIG[
+            category
+        ][project_type][framework]
+
+    except KeyError:
+        raise ValueError(
+            f"Framework '{framework}' belum didukung "
+            f"untuk kategori '{category}' "
+            f"dengan tipe '{project_type}'."
+        )
+
+    return sorted(set(dependencies))
+
+
+def generate_requirements(project_dir, dependencies):
+    """
+    Membuat requirements.txt secara otomatis
+    untuk backend dan model.
+    """
+
+    backend_dir = project_dir / "backend"
+    model_dir = project_dir / "model"
+
+    # Pastikan folder tersedia
+    if not backend_dir.is_dir():
+        raise FileNotFoundError(
+            f"Folder backend tidak ditemukan: {backend_dir}"
+        )
+
+    if not model_dir.is_dir():
+        raise FileNotFoundError(
+            f"Folder model tidak ditemukan: {model_dir}"
+        )
+
+    # Backend requirements
+    backend_requirements = backend_dir / "requirements.txt"
+
+    backend_requirements.write_text(
+        "\n".join(BACKEND_DEPENDENCIES) + "\n",
+        encoding="utf-8"
+    )
+
+    # Model requirements
+    model_requirements = model_dir / "requirements.txt"
+
+    model_requirements.write_text(
+        "\n".join(dependencies) + "\n",
+        encoding="utf-8"
+    )
+
+    print("\nDEPENDENCIES GENERATED")
+
+    print("\nBackend:")
+    for dependency in BACKEND_DEPENDENCIES:
+        print(f"  - {dependency}")
+
+    print("\nModel:")
+    for dependency in dependencies:
+        print(f"  - {dependency}")
+
+
 # ==========================================
 # PROJECT GENERATOR
 # ==========================================
@@ -120,8 +381,16 @@ def create_project(args):
 
     category = args.category
     project_type = args.type
+    framework = args.framework.strip().lower()
 
-    # 3. Determine output directory
+    # 3. Get project dependencies
+    dependencies = get_dependencies(
+        category,
+        project_type,
+        framework
+    )
+
+    # 4. Determine output directory
     output_dir = (
         ROOT_DIR
         / "projects"
@@ -131,20 +400,20 @@ def create_project(args):
 
     project_dir = output_dir / project_slug
 
-    # 4. Prevent duplicate project
+    # 5. Prevent duplicate project
     if project_dir.exists():
         raise FileExistsError(
             f"Project sudah ada:\n{project_dir}\n"
             "Gunakan nama lain atau periksa folder tersebut terlebih dahulu."
         )
 
-    # 5. Create parent directory
+    # 6. Create parent directory
     output_dir.mkdir(
         parents=True,
         exist_ok=True
     )
 
-    # 6. Cookiecutter context
+    # 7. Cookiecutter context
     context = {
         "project_name": args.name.strip(),
         "project_slug": project_slug,
@@ -152,12 +421,12 @@ def create_project(args):
         "author_name": args.author,
         "category": category,
         "project_type": project_type,
-        "model_framework": args.framework,
+        "model_framework": framework,
         "huggingface_model_id": args.huggingface_model_id,
         "python_version": args.python_version
     }
 
-    # 7. Generate project
+    # 8. Generate project
     result = cookiecutter(
         str(TEMPLATE_DIR),
         output_dir=str(output_dir),
@@ -165,7 +434,13 @@ def create_project(args):
         no_input=True
     )
 
-    # 8. Success message
+    # 9. Generate requirements files
+    generate_requirements(
+        Path(result),
+        dependencies
+    )
+
+    # 10. Success message
     print("\n" + "=" * 45)
     print("       PROJECT CREATED SUCCESSFULLY")
     print("=" * 45)
@@ -173,13 +448,13 @@ def create_project(args):
     print(f"Project Name : {args.name}")
     print(f"Category     : {category}")
     print(f"Project Type : {project_type}")
-    print(f"Framework    : {args.framework}")
+    print(f"Framework    : {framework}")
     print(f"Location     : {result}")
 
     print("\nNext steps:")
     print("1. Masuk ke folder project.")
     print("2. Periksa file .env.example.")
-    print("3. Install dependencies backend dan frontend.")
+    print("3. Install dependencies backend dan model.")
     print("4. Jalankan pengujian.")
     print("5. Jalankan Docker Compose jika diperlukan.")
 
