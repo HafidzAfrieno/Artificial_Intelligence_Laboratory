@@ -1,0 +1,12 @@
+project:
+  name: "Heart Disease Risk Classification"
+  category: "machine-learning"
+  type: "classification"
+
+model:
+  framework: "scikit-learn"
+  huggingface_id: ""
+
+training:
+  random_state: 42
+  test_size: 0.2
