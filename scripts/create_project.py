@@ -504,7 +504,7 @@ def main():
 
     parser.add_argument(
         "--author",
-        default="AI Engineering Lab",
+        default="Hafidz Afrieno",
         help="Nama author"
     )
 
