@@ -3,10 +3,13 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "house_price_prediction"
+name = "{{ cookiecutter.project_slug }}"
 version = "0.1.0"
 description = "Machine Learning project"
 requires-python = ">=3.9"
 
+[tool.setuptools]
+package-dir = {"" = "model/src"}
+
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["model/src"]
