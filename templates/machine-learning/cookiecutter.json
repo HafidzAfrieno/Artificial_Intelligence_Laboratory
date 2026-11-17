@@ -1,7 +1,0 @@
-{
-    "project_slug": "house-price-prediction",
-    "project_name": "{{ cookiecutter.project_slug | replace('-', ' ') | title }}",
-    "package_name": "{{ cookiecutter.project_slug | replace('-', '_') }}",
-    "description": "{{ cookiecutter.project_name }} - Machine Learning project",
-    "author": "Hafidz Akmal"
-}
