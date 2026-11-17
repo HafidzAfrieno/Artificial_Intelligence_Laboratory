@@ -1,4 +1,4 @@
-
+import json
 import re
 import sys
 from pathlib import Path
@@ -55,19 +55,30 @@ def create_machine_learning_project(project_input: str):
             f"Project '{project_slug}' sudah tersedia."
         )
 
-    # Cookiecutter configuration
-    context = {
+    # ==========================================
+    # LOAD COOKIECUTTER CONFIGURATION
+    # ==========================================
+
+    config_path = TEMPLATE_DIR / "cookiecutter.json"
+
+    with open(config_path, "r", encoding="utf-8") as file:
+        context = json.load(file)
+
+    # ==========================================
+    # UPDATE PROJECT CONFIGURATION
+    # ==========================================
+
+    context.update({
         "project_name": project_name,
-        "project_slug": project_slug,
-        "project_description": "Machine Learning Application",
-        "author_name": "Your Name",
-        "version": "0.1.0",
-        "python_version": "3.9"
-    }
+        "project_slug": project_slug
+    })
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Generate project
+    # ==========================================
+    # GENERATE PROJECT
+    # ==========================================
+
     cookiecutter(
         template=str(TEMPLATE_DIR),
         output_dir=str(OUTPUT_DIR),

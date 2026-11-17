@@ -9,7 +9,7 @@ Machine Learning Application
 |---|---|
 | Project Name | Heart Disease Risk Classification |
 | Project Slug | heart-disease-risk-classification |
-| Author | Your Name |
+| Author | Hafidz Akmal |
 | Version | 0.1.0 |
 | Python Version | 3.9 |
 
@@ -54,7 +54,7 @@ heart-disease-risk-classification/
 
 ## Requirements
 
-- Python 3.11
+- Python 3.9
 - Node.js
 - npm
 - Docker (optional)
@@ -121,10 +121,10 @@ npm install
 
 ## License
 
-This project is developed by Your Name.
+This project is developed by Hafidz Akmal.
 
 ---
 
 **Project:** Heart Disease Risk Classification  
 **Version:** 0.1.0  
-**Author:** Your Name
+**Author:** Hafidz Akmal

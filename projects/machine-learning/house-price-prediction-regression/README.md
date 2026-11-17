@@ -9,7 +9,7 @@ Machine Learning Application
 |---|---|
 | Project Name | House Price Prediction Regression |
 | Project Slug | house-price-prediction-regression |
-| Author | Your Name |
+| Author | Hafidz Akmal |
 | Version | 0.1.0 |
 | Python Version | 3.9 |
 
@@ -54,7 +54,7 @@ house-price-prediction-regression/
 
 ## Requirements
 
-- Python 3.11
+- Python 3.9
 - Node.js
 - npm
 - Docker (optional)
@@ -121,10 +121,10 @@ npm install
 
 ## License
 
-This project is developed by Your Name.
+This project is developed by Hafidz Akmal.
 
 ---
 
 **Project:** House Price Prediction Regression  
 **Version:** 0.1.0  
-**Author:** Your Name
+**Author:** Hafidz Akmal
