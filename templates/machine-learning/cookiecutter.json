@@ -1,0 +1,8 @@
+{
+    "project_name": "House Price Prediction",
+    "project_slug": "house-price-prediction",
+    "project_description": "Machine Learning Application",
+    "author_name": "Hafidz Akmal",
+    "version": "0.1.0",
+    "python_version": "3.9"
+}

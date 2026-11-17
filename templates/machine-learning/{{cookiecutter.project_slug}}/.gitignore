@@ -1,0 +1,87 @@
+
+# ==========================================
+# ENVIRONMENT VARIABLES
+# ==========================================
+
+.env
+.env.*
+!.env.example
+
+# ==========================================
+# PYTHON
+# ==========================================
+
+__pycache__/
+*.py[cod]
+*$py.class
+
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Virtual Environment
+.venv/
+venv/
+env/
+
+# ==========================================
+# JUPYTER NOTEBOOK
+# ==========================================
+
+.ipynb_checkpoints/
+
+# ==========================================
+# MACHINE LEARNING
+# ==========================================
+
+# Model artifacts
+*.pkl
+*.pickle
+*.joblib
+*.h5
+*.keras
+*.pt
+*.pth
+*.onnx
+
+# Generated data
+model/data/raw/*
+model/data/processed/*
+
+# Keep folder structure
+!model/data/raw/.gitkeep
+!model/data/processed/.gitkeep
+
+# ==========================================
+# FRONTEND
+# ==========================================
+
+node_modules/
+dist/
+.next/
+.vite/
+
+# ==========================================
+# IDE & EDITOR
+# ==========================================
+
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ==========================================
+# OPERATING SYSTEM
+# ==========================================
+
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ==========================================
+# LOG FILES
+# ==========================================
+
+*.log
+logs/

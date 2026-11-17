@@ -1,0 +1,56 @@
+
+# ==========================================
+# BASE IMAGE
+# ==========================================
+
+FROM python:3.11-slim
+
+# ==========================================
+# ENVIRONMENT CONFIGURATION
+# ==========================================
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# ==========================================
+# WORKING DIRECTORY
+# ==========================================
+
+WORKDIR /app
+
+# ==========================================
+# INSTALL BACKEND DEPENDENCIES
+# ==========================================
+
+COPY backend/requirements.txt /app/backend/requirements.txt
+
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r /app/backend/requirements.txt
+
+# ==========================================
+# COPY BACKEND SOURCE CODE
+# ==========================================
+
+COPY backend/ /app/backend/
+
+# ==========================================
+# COPY TRAINED MODEL ARTIFACTS
+# ==========================================
+
+COPY model/artifacts/ /app/model/artifacts/
+
+# ==========================================
+# BACKEND CONFIGURATION
+# ==========================================
+
+ENV MODEL_ARTIFACTS_DIR=/app/model/artifacts
+
+WORKDIR /app/backend
+
+EXPOSE 8000
+
+# ==========================================
+# START APPLICATION
+# ==========================================
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

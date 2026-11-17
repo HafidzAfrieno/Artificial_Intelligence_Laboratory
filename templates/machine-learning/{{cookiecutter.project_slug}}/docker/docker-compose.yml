@@ -1,0 +1,42 @@
+
+services:
+
+  # ==========================================
+  # BACKEND SERVICE
+  # ==========================================
+
+  backend:
+    container_name: "{{ cookiecutter.project_slug }}-backend"
+
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend
+
+    ports:
+      - "8000:8000"
+
+    environment:
+      PYTHONUNBUFFERED: "1"
+      MODEL_ARTIFACTS_DIR: /app/model/artifacts
+
+    restart: unless-stopped
+
+
+  # ==========================================
+  # FRONTEND SERVICE
+  # ==========================================
+
+  frontend:
+    container_name: "{{ cookiecutter.project_slug }}-frontend"
+
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.frontend
+
+    ports:
+      - "80:80"
+
+    depends_on:
+      - backend
+
+    restart: unless-stopped
