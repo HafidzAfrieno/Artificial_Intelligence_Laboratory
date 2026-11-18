@@ -1,432 +1,75 @@
+# Heart Disease Risk Classification
 
-# Project Name
-
-> Short description of the project and the problem it aims to solve.
-
----
-
-## 1. Project Overview
-
-### 1.1 Description
-
-Describe the project, the problem being addressed, and the general approach used to solve it.
-
-### 1.2 Problem Statement
-
-Explain the main problem that this project aims to solve.
-
-- What problem are we trying to solve?
-- Why is this problem important?
-- Who benefits from the solution?
-- How can Machine Learning help solve this problem?
-
-### 1.3 Project Objectives
-
-List the main objectives of this project.
-
-- Objective 1
-- Objective 2
-- Objective 3
-
-### 1.4 Project Scope
-
-Describe the scope and limitations of the project.
+> **Status Proyek:** Tahap 1 - Problem Framing & Business Understanding  
+> **Author:** Hafidz Akmal Afrieno (@HafidzAfrieno)  
+> **Tanggal:** 2026-11-18
 
 ---
 
-## 2. Dataset Information
-
-### 2.1 Dataset Source
-
-| Information | Description |
-|---|---|
-| Dataset Name | Dataset Name |
-| Source | Dataset Provider |
-| Dataset URL | [Dataset Link](INSERT_URL) |
-| File Format | CSV / Excel / JSON / Other |
-| Number of Rows | TBD |
-| Number of Columns | TBD |
-| Target Variable | TBD |
-
-### 2.2 Dataset Description
-
-Provide a brief explanation of the dataset, its contents, characteristics, and intended use.
-
-### 2.3 Feature Description
-
-| Feature | Data Type | Description |
-|---|---|---|
-| Feature 1 | Numerical | Description |
-| Feature 2 | Categorical | Description |
-| Feature 3 | Numerical | Description |
-
-### 2.4 Target Variable
-
-| Information | Description |
-|---|---|
-| Target Name | TBD |
-| Target Type | TBD |
-| Target Classes / Values | TBD |
+## 1. Latar Belakang & Tujuan Bisnis
+* **Masalah yang Dihadapi:** Penyakit jantung dan gagal jantung sering kali berkembang tanpa gejala awal yang disadari pasien, sementara pemeriksaan kardiologi lanjutan (seperti ekokardiografi atau kateterisasi) membutuhkan biaya tinggi dan fasilitas khusus. Tanpa alat skrining awal yang cepat, pasien berisiko tinggi sering terlambat mendapatkan penanganan medis.
+* **Tujuan Utama:** Membangun sistem klasifikasi risiko penyakit jantung berbasis *Machine Learning* yang terintegrasi ke dalam aplikasi kesehatan untuk melakukan deteksi dini (*early screening*) berdasarkan data klinis dasar pasien.
+* **Tindakan / Keputusan (*Actionability*):** 
+  * Jika probabilitas risiko tinggi (`risk_score >= threshold`), aplikasi akan menampilkan peringatan dini (*early warning*), memberikan rekomendasi perubahan gaya hidup, serta mengarahkan pengguna/tenaga medis untuk segera menjadwalkan konsultasi dokter spesialis jantung dan pemeriksaan EKG lanjutan.
+  * Jika probabilitas risiko rendah, aplikasi memberikan ringkasan pemantauan kesehatan rutin.
 
 ---
 
-## 3. Machine Learning Approach
-
-### 3.1 Machine Learning Type
-
-- Learning Type: Supervised / Unsupervised / Other
-- Problem Type: Classification / Regression / Clustering / Forecasting
-- Model Objective: TBD
-
-### 3.2 Evaluation Strategy
-
-Explain how the model's performance will be evaluated and what criteria will be used to determine success.
+## 2. Formulasi Masalah Machine Learning
+* **Tipe Tugas ML:** `Binary Classification`
+* **Definisi Target ($y$):** 
+  * **Variabel Target:** `target`
+  * **Definisi Eksak:** `1` jika pasien terindikasi memiliki penyakit jantung / risiko tinggi gagal jantung berdasarkan rekam klinis diagnostik, dan `0` jika pasien tidak memiliki indikasi penyakit jantung (normal).
+* **Unit Analisis (*Granularity*):** Satu baris data merepresentasikan satu sesi pemeriksaan klinis unik dari seorang pasien yang diidentifikasi oleh `patientid`.
 
 ---
 
-## 4. Machine Learning Workflow
-
-Describe the development process followed in this project.
-
-1. Problem Understanding
-2. Data Collection & Data Understanding
-3. Exploratory Data Analysis (EDA)
-4. Data Preprocessing
-5. Feature Engineering
-6. Data Splitting
-7. Feature Transformation & Pipeline
-8. Model Selection
-9. Model Training
-10. Model Evaluation
-11. Hyperparameter Tuning
-12. Model Interpretation
-13. Model Finalization
-14. Model Deployment
-15. Model Monitoring & Maintenance
-
----
-
-## 5. Exploratory Data Analysis (EDA)
-
-### 5.1 Dataset Overview
-
-Describe the dataset structure, feature types, and statistical characteristics.
-
-### 5.2 Univariate Analysis
-
-Analyze individual feature distributions.
-
-### 5.3 Bivariate Analysis
-
-Analyze relationships between two variables.
-
-### 5.4 Multivariate Analysis
-
-Analyze relationships among multiple variables.
-
-### 5.5 Data Quality Analysis
-
-- Missing Values
-- Duplicate Data
-- Outliers
-- Inconsistent Values
-- Class Distribution (if applicable)
-
-### 5.6 EDA Findings
-
-Summarize the most important findings from the exploratory analysis.
+## 3. Rencana Data & Kandidat Fitur ($X$)
+* **Sumber Data:** Dataset klinis penyakit jantung (*Cardiovascular / Heart Disease Dataset*) dengan 14 atribut terstruktur.
+* **Kolom Identifier (Dikecualikan dari Pelatihan Model):**
+  * `patientid`: ID unik pasien (hanya digunakan untuk pelacakan baris dan *Group Split* jika terdapat pasien berulang; wajib dibuang sebelum masuk ke model agar tidak terjadi *memorization*).
+* **Kandidat Fitur Awal ($X$):**
+  * `age`: Usia pasien (tahun).
+  * `gender`: Jenis kelamin biologis pasien (`0` = perempuan, `1` = laki-laki).
+  * `chestpain`: Tipe nyeri dada yang dialami pasien (`0` = *typical angina*, `1` = *atypical angina*, `2` = *non-anginal pain*, `3` = *asymptomatic*).
+  * `restingBP`: Tekanan darah istirahat (*resting blood pressure* dalam mm Hg).
+  * `serumcholestrol`: Kadar kolesterol serum (*serum cholesterol* dalam mg/dl).
+  * `fastingbloodsugar`: Indikator gula darah puasa > 120 mg/dl (`1` = ya, `0` = tidak).
+  * `restingrelectro`: Hasil elektrokardiografi saat istirahat (*resting ECG*: normal, kelainan gelombang ST-T, atau hipertrofi ventrikel kiri).
+  * `maxheartrate`: Detak jantung maksimum yang dicapai pasien (*maximum heart rate achieved*).
+  * `exerciseangia`: Indikator angina yang dipicu oleh aktivitas fisik/olahraga (`1` = ya, `0` = tidak).
+  * `oldpeak`: Nilai depresi segmen ST yang dipicu oleh olahraga relatif terhadap kondisi istirahat.
+  * `slope`: Kemiringan (*slope*) segmen ST pada puncak latihan fisik (*upsloping*, *flat*, *downsloping*).
+  * `noofmajorvessels`: Jumlah pembuluh darah utama (0–3) yang terdeteksi melalui pewarnaan fluoroskopi.
+* **Audit Anti-Leakage:** Seluruh fitur input di atas digunakan untuk memprediksi `target` pada waktu evaluasi klinis ($t_0$). Pada tahap *preprocessing* dan *deployment* aplikasi, perlu diperhatikan bahwa `noofmajorvessels` merupakan hasil pemeriksaan fluoroskopi lanjutan—jika aplikasi ditujukan untuk skrining mandiri pengguna awam di rumah (tanpa akses hasil fluoroskopi), fitur ini harus dievaluasi ulang ketersediaannya atau ditangani sebagai fitur opsional.
 
 ---
 
-## 6. Data Preprocessing
+## 4. Metrik Evaluasi & Kriteria Sukses
 
-Document all data cleaning and preprocessing techniques.
+| Kategori | Metrik | Target Minimal (*Success Criteria*) | Alasan Pemilihan |
+| :--- | :--- | :--- | :--- |
+| **Metrik Bisnis (KPI)** | Tingkat Deteksi Dini Pasien Berisiko (*Screening Capture Rate*) | Menjaring minimal 85% pasien berisiko tinggi sebelum terjadi komplikasi akut | Memastikan sistem aplikasi benar-benar membantu triase dan pencegahan keterlambatan medis. |
+| **Metrik Teknis Utama** | **Recall (Sensitivity)** & **F2-Score** | `Recall >= 0.85` dan `F2-Score >= 0.80` | Dalam domain medis, melewatkan pasien yang sebenarnya sakit (*False Negative*) jauh lebih berbahaya daripada peringatan berlebih. |
+| **Metrik Teknis Sekunder** | **PR-AUC** & **Precision** | `PR-AUC >= 0.82` dan `Precision >= 0.70` | Menjaga keseimbangan agar aplikasi tidak terlalu sering memberikan alarm palsu (*false alarm*) yang memicu kepanikan pengguna. |
 
-| Process | Method | Reason |
-|---|---|---|
-| Missing Values | TBD | TBD |
-| Duplicate Handling | TBD | TBD |
-| Outlier Handling | TBD | TBD |
-| Data Cleaning | TBD | TBD |
-| Encoding | TBD | TBD |
-| Scaling | TBD | TBD |
-| Imbalance Handling | TBD | TBD |
-
----
-
-## 7. Feature Engineering
-
-### 7.1 Feature Creation
-
-Describe newly created features.
-
-### 7.2 Feature Transformation
-
-Describe transformations applied to existing features.
-
-### 7.3 Feature Selection
-
-Describe methods used to select relevant features.
-
-### 7.4 Final Features
-
-List the features used by the final model.
+* **Analisis Biaya Kesalahan (*Error Trade-off*):**
+  * **False Positive (FP):** Pasien yang sebenarnya sehat diprediksi berisiko tinggi (`target = 1`). Dampaknya adalah kecemasan sementara pada pengguna dan biaya pemeriksaan skrining lanjutan (EKG/konsultasi dokter).
+  * **False Negative (FN):** Pasien yang sebenarnya memiliki risiko penyakit jantung diprediksi sehat/aman (`target = 0`). Dampaknya sangat fatal karena pasien menunda pengobatan dan berisiko mengalami serangan atau gagal jantung mendadak.
+  * **Prioritas:** Meminimalkan **False Negative (FN)** dengan mengoptimalkan *Recall* sambil menjaga *Precision* pada batas yang dapat diterima secara klinis.
 
 ---
 
-## 8. Data Splitting & Pipeline
-
-### 8.1 Data Splitting
-
-| Dataset | Percentage |
-|---|---:|
-| Training | TBD |
-| Validation | TBD |
-| Testing | TBD |
-
-- Splitting Method: TBD
-- Random State: TBD
-- Stratification: TBD
-
-### 8.2 Preprocessing Pipeline
-
-Explain the preprocessing pipeline, including imputation, encoding, scaling, and other transformations.
+## 5. Baseline Non-ML & Pembanding Awal
+* **Solusi Saat Ini / Heuristik Sederhana:** Aturan skrining klinis statis berbasis ambang batas faktor risiko tunggal (misalnya: `IF age > 50 AND (restingBP > 140 OR serumcholestrol > 240) THEN berisiko_tinggi`).
+* **Skor Baseline:** *To Be Measured* di Tahap 9 (seluruh model ML wajib mengalahkan skor *Recall* dan *F2-Score* dari aturan heuristik ini).
 
 ---
 
-## 9. Model Development
-
-### 9.1 Model Selection
-
-List the algorithms considered and explain why they were selected.
-
-### 9.2 Baseline Model
-
-Describe the baseline model and its initial performance.
-
-### 9.3 Model Training
-
-Explain the training process and configurations.
-
-### 9.4 Model Comparison
-
-| Model | Metric 1 | Metric 2 | Metric 3 | Overall Result |
-|---|---:|---:|---:|---|
-| Model 1 | TBD | TBD | TBD | TBD |
-| Model 2 | TBD | TBD | TBD | TBD |
-| Model 3 | TBD | TBD | TBD | TBD |
+## 6. Batasan Teknis & Kebutuhan Deployment (*Constraints*)
+* **Mode Inferensi:** `Real-time REST API` (menggunakan FastAPI agar dapat dikonsumsi langsung oleh aplikasi mobile/web kesehatan saat pengguna memasukkan data pemeriksaan).
+* **Target Latensi:** `< 200 ms` per permintaan prediksi agar pengalaman pengguna di dalam aplikasi tetap responsif.
+* **Kebutuhan Interpretabilitas (*Explainability*):** **Wajib.** Aplikasi harus menampilkan faktor utama yang memengaruhi skor risiko pasien (menggunakan *SHAP values* atau *Feature Contribution*, misalnya: *"Risiko meningkat terutama karena nilai `restingBP` tinggi dan tipe `chestpain`"*), sehingga dokter dan pengguna tidak menerima prediksi *black-box* begitu saja.
+* **Frekuensi Retraining:** Setiap 6 bulan sekali menggunakan data klinis baru yang telah tervalidasi dokter, atau lebih cepat jika terdeteksi *Data Drift* pada distribusi usia dan profil kesehatan pengguna aplikasi.
 
 ---
-
-## 10. Model Evaluation
-
-### 10.1 Evaluation Metrics
-
-List the evaluation metrics relevant to the problem.
-
-### 10.2 Evaluation Results
-
-Present the model evaluation results using tables, charts, and other relevant visualizations.
-
-### 10.3 Best Model
-
-| Information | Description |
-|---|---|
-| Selected Model | TBD |
-| Best Parameters | TBD |
-| Evaluation Results | TBD |
-| Selection Reason | TBD |
-
-### 10.4 Evaluation Findings
-
-Discuss model performance, generalization, potential errors, and limitations.
-
----
-
-## 11. Hyperparameter Tuning
-
-### 11.1 Tuning Method
-
-Describe the optimization method used.
-
-### 11.2 Hyperparameter Configuration
-
-Document the search space and selected parameters.
-
-### 11.3 Tuning Results
-
-Compare model performance before and after tuning.
-
----
-
-## 12. Model Interpretation
-
-Describe how the model's predictions and behavior are interpreted.
-
-Possible methods:
-
-- Feature Importance
-- Permutation Importance
-- SHAP
-- Partial Dependence Plot
-- Other relevant interpretation techniques
-
-### Key Findings
-
-Summarize the important insights obtained from model interpretation.
-
----
-
-## 13. Model Finalization
-
-### 13.1 Final Model
-
-Describe the selected final model.
-
-### 13.2 Final Evaluation
-
-Document the final performance on the test dataset.
-
-### 13.3 Model Export
-
-Describe the model serialization format and saved artifacts.
-
-### 13.4 Model Version
-
-- Version: TBD
-- Framework: TBD
-- Created Date: TBD
-
----
-
-## 14. Model Deployment
-
-### 14.1 Deployment Architecture
-
-Describe the deployment architecture and components.
-
-### 14.2 API / Application
-
-Explain how users or external applications interact with the model.
-
-### 14.3 Deployment Platform
-
-Document the platform used to deploy the model.
-
-### 14.4 Usage Instructions
-
-Provide instructions for running or accessing the model.
-
----
-
-## 15. Model Monitoring & Maintenance
-
-Describe how the deployed model will be maintained.
-
-- Performance Monitoring
-- Data Drift Detection
-- Concept Drift Detection
-- Logging
-- Model Retraining
-- Model Versioning
-
----
-
-## 16. Project Structure
-
-```text
-project-name/
-│
-├── data/
-│   ├── raw/
-│   └── processed/
-│
-├── notebooks/
-│
-├── src/
-│
-├── models/
-│
-├── reports/
-│
-├── requirements.txt
-├── README.md
-└── .gitignore
-```
-
----
-
-## 17. Installation & Usage
-
-### 17.1 Clone Repository
-
-```bash
-git clone <repository-url>
-cd project-name
-```
-
-### 17.2 Install Dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### 17.3 Run Project
-
-Provide instructions for executing the project.
-
----
-
-## 18. Results & Conclusion
-
-### 18.1 Results
-
-Summarize the final results and achievements.
-
-### 18.2 Conclusion
-
-Explain whether the project objectives were achieved and what insights were obtained.
-
----
-
-## 19. Limitations & Future Improvements
-
-### Limitations
-
-- Limitation 1
-- Limitation 2
-
-### Future Improvements
-
-- Improvement 1
-- Improvement 2
-
----
-
-## 20. References
-
-### Dataset Sources
-
-- [Dataset Name](DATASET_URL)
-
-### Research Papers
-
-- [Paper Title](PAPER_URL)
-
-### Documentation
-
-- [Library / Framework Documentation](DOCUMENTATION_URL)
-
----
-
-## 21. Author
-
-- **Author:** Your Name
-- **Project:** Project Name
-- **Field:** Data Science & Machine Learning
-
----
-
-## Disclaimer
-
-Include relevant disclaimers depending on the project's domain and intended use.
