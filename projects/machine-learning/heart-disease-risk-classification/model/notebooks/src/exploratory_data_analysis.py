@@ -118,7 +118,7 @@ def target_analysis(df: pd.DataFrame,target_col:str,task_type : Literal["auto", 
             plt.show()
 
 
-def seperate_feature_types(df: pd.DataFrame,exclude_cols: Optional[list[str]] = None,cat_threshold: int = 10,force_cat: Optional[list[str]] = None,
+def separate_feature_types(df: pd.DataFrame,exclude_cols: Optional[list[str]] = None,cat_threshold: int = 10,force_cat: Optional[list[str]] = None,
                            force_num: Optional[list[str]] = None,verbose: bool = True)->tuple[list[str],list[str]]:
     """Memisahkan fitur numerik dan kategorikal, termasuk mendeteksi fitur kategorikal yang sudah di-encoding menjadi angka (integer)."""
     exclude_set = set(exclude_cols or [])
@@ -161,7 +161,7 @@ def univariate_analysis(df: pd.DataFrame,exclude_cols: Optional[list[str]] = Non
                         force_num: Optional[list[str]] = None, max_cat_unique: int = 20,n_cols: int = 3,palette: str = "Set2",)->None:
     """Menganalisis distribusi setiap fitur secara individual (numerik & kategorikal)."""
     data = df.drop(columns=exclude_cols, errors="ignore") if exclude_cols else df.copy()
-    num_cols,cat_cols = seperate_feature_types(df=df,exclude_cols=exclude_cols,cat_threshold=cat_threshold,force_cat=force_cat,force_num=force_num)
+    num_cols,cat_cols = separate_feature_types(df=df,exclude_cols=exclude_cols,cat_threshold=cat_threshold,force_cat=force_cat,force_num=force_num)
 
     # 1. Analisis Numerik
     if num_cols:
@@ -188,7 +188,7 @@ def univariate_analysis(df: pd.DataFrame,exclude_cols: Optional[list[str]] = Non
         # Grid Plot: Histogram + KDE
         n_rows = math.ceil(len(num_cols) / n_cols)
         fig, axes = plt.subplots(n_rows, n_cols, figsize=(5 * n_cols, 3.8 * n_rows))
-        axes = axes.flatten() if len(num_cols) > 1 else [axes]
+        axes = axes.flatten() if hasattr(axes, "flatten") else [axes]
 
         for idx, col in enumerate(num_cols):
             sns.histplot(data[col].dropna(), kde=True, ax=axes[idx], color="#2563EB")
@@ -204,7 +204,7 @@ def univariate_analysis(df: pd.DataFrame,exclude_cols: Optional[list[str]] = Non
 
         # Grid Plot: Boxplot (Deteksi Outlier)
         fig, axes = plt.subplots(n_rows, n_cols, figsize=(5 * n_cols, 2.8 * n_rows))
-        axes = axes.flatten() if len(num_cols) > 1 else [axes]
+        axes = axes.flatten() if hasattr(axes, "flatten") else [axes]
 
         for idx, col in enumerate(num_cols):
             sns.boxplot(x=data[col].dropna(), ax=axes[idx], color="#60A5FA")
@@ -248,27 +248,165 @@ def univariate_analysis(df: pd.DataFrame,exclude_cols: Optional[list[str]] = Non
             if plot_cats:
                 n_rows = math.ceil(len(plot_cats) / n_cols)
                 fig, axes = plt.subplots(n_rows, n_cols, figsize=(5.5 * n_cols, 3.8 * n_rows))
-                axes = axes.flatten() if len(plot_cats) > 1 else [axes]
+                axes = axes.flatten() if hasattr(axes, "flatten") else [axes]
 
                 for idx, col in enumerate(plot_cats):
                     order = data[col].value_counts().index
                     colors = sns.color_palette(palette, n_colors=len(order))
-                    sns.countplot(
-                        data=data,
-                        y=col,
-                        hue=col,
-                        order=order,
-                        palette=colors,
-                        legend=False,
-                        ax=axes[idx],
-                    )
+                    sns.countplot(data=data,y=col,hue=col,order=order,palette=colors,legend=False,ax=axes[idx],)
                     axes[idx].set_title(f"Distribusi: {col}", fontsize=10)
                     axes[idx].set_ylabel("")
 
                 for idx in range(len(plot_cats), len(axes)):
                     axes[idx].set_visible(False)
 
-                plt.suptitle("Distribusi Fitur Kategorikal (Countplot)", fontsize=13, y=1.02)
                 plt.tight_layout()
                 plt.show()
 
+def bivariate_analysis(df: pd.DataFrame,target_col: Optional[str] = None,task_type: Literal["auto", "classification", "regression", "clustering"] = "auto",exclude_cols: Optional[list[str]] = None,
+                       cat_threshold: int = 10,force_cat: Optional[list[str]] = None,force_num: Optional[list[str]] = None,n_cols: int = 3,palette: str = "Set2")->None:
+    """Menganalisis hubungan dua variabel untuk Classification, Regression, atau Clustering."""
+    if target_col and target_col not in df.columns:
+        raise ValueError(f"Kolom target '{target_col}' tidak ditemukan dalam dataset.")
+    if task_type == "auto":
+        if target_col is None:
+            task_type = "clustering"
+        else:
+            target = df[target_col]
+            is_num = pd.api.types.is_numeric_dtype(target)
+            is_bool = pd.api.types.is_bool_dtype(target)
+            task_type = (
+                "classification"
+                if (is_bool or not is_num or target.nunique() <= 15)
+                else "regression"
+            )
+
+    excl = list(exclude_cols or [])
+    if target_col:
+        excl.append(target_col)
+
+    num_cols, cat_cols = separate_feature_types(
+        df=df,
+        exclude_cols=excl,
+        cat_threshold=cat_threshold,
+        force_cat=force_cat,
+        force_num=force_num,
+        verbose=False,
+    )
+    print(f"=== BIVARIATE ANALYSIS ({task_type.upper()}) ===")
+    if task_type == "classification" and target_col:
+        if num_cols:
+            print(f"\n[1] Numerical Features vs '{target_col}' (Mean per Kelas)")
+            display(df.groupby(target_col, observed=False)[num_cols].mean().T.round(3))
+
+            n_rows = math.ceil(len(num_cols) / n_cols)
+            fig, axes = plt.subplots(n_rows, n_cols, figsize=(5 * n_cols, 3.8 * n_rows))
+            axes = axes.flatten() if hasattr(axes, "flatten") else [axes]
+
+            for idx, col in enumerate(num_cols):
+                sns.boxplot(
+                    data=df, x=target_col, y=col, hue=target_col,
+                    palette=palette, legend=False, ax=axes[idx],
+                )
+                axes[idx].set_title(f"{col} vs {target_col}", fontsize=10)
+
+            for idx in range(len(num_cols), len(axes)):
+                axes[idx].set_visible(False)
+            plt.tight_layout()
+            plt.show()
+
+        if cat_cols:
+            print(f"\n[2] Categorical Features vs '{target_col}'")
+            n_rows = math.ceil(len(cat_cols) / n_cols)
+            fig, axes = plt.subplots(n_rows, n_cols, figsize=(5.2 * n_cols, 3.8 * n_rows))
+            axes = axes.flatten() if hasattr(axes, "flatten") else [axes]
+
+            for idx, col in enumerate(cat_cols):
+                sns.countplot(data=df, x=col, hue=target_col, palette=palette, ax=axes[idx])
+                axes[idx].set_title(f"{col} vs {target_col}", fontsize=10)
+                axes[idx].tick_params(axis="x", rotation=25)
+
+            for idx in range(len(cat_cols), len(axes)):
+                axes[idx].set_visible(False)
+            plt.tight_layout()
+            plt.show()
+
+    elif task_type == "regression" and target_col:
+        if num_cols:
+            print(f"\n[1] Numerical Features vs '{target_col}' (Korelasi)")
+            corr_df = pd.DataFrame({
+                "Pearson": [df[col].corr(df[target_col], method="pearson") for col in num_cols],
+                "Spearman": [df[col].corr(df[target_col], method="spearman") for col in num_cols],
+            }, index=num_cols).sort_values(by="Pearson", key=abs, ascending=False)
+            display(corr_df.round(3))
+
+            n_rows = math.ceil(len(num_cols) / n_cols)
+            fig, axes = plt.subplots(n_rows, n_cols, figsize=(5 * n_cols, 3.8 * n_rows))
+            axes = axes.flatten() if hasattr(axes, "flatten") else [axes]
+
+            for idx, col in enumerate(num_cols):
+                sns.regplot(
+                    data=df, x=col, y=target_col, ax=axes[idx],
+                    scatter_kws={"alpha": 0.5, "color": "#2563EB"},
+                    line_kws={"color": "#DC2626"},
+                )
+                r_val = corr_df.loc[col, "Pearson"]
+                axes[idx].set_title(f"{col} vs {target_col} (r = {r_val:.2f})", fontsize=10)
+
+            for idx in range(len(num_cols), len(axes)):
+                axes[idx].set_visible(False)
+            plt.tight_layout()
+            plt.show()
+
+        if cat_cols:
+            print(f"\n[2] Categorical Features vs '{target_col}'")
+            n_rows = math.ceil(len(cat_cols) / n_cols)
+            fig, axes = plt.subplots(n_rows, n_cols, figsize=(5 * n_cols, 3.8 * n_rows))
+            axes = axes.flatten() if hasattr(axes, "flatten") else [axes]
+
+            for idx, col in enumerate(cat_cols):
+                sns.boxplot(
+                    data=df, x=col, y=target_col, hue=col,
+                    palette=palette, legend=False, ax=axes[idx],
+                )
+                axes[idx].set_title(f"{target_col} per {col}", fontsize=10)
+                axes[idx].tick_params(axis="x", rotation=25)
+
+            for idx in range(len(cat_cols), len(axes)):
+                axes[idx].set_visible(False)
+            plt.tight_layout()
+            plt.show()
+
+    elif task_type == "clustering":
+        if len(num_cols) >= 2:
+            print("\n[1] Top Pasangan Fitur Numerik Paling Berkorelasi")
+            corr_matrix = df[num_cols].corr()
+            pairs = (
+                corr_matrix.where(
+                    pd.DataFrame(
+                        [[i < j for j in range(len(num_cols))] for i in range(len(num_cols))],
+                        index=num_cols, columns=num_cols,
+                    )
+                )
+                .stack()
+                .reset_index()
+            )
+            pairs.columns = ["Feature 1", "Feature 2", "Correlation"]
+            pairs["Abs_Corr"] = pairs["Correlation"].abs()
+            top_pairs = pairs.sort_values(by="Abs_Corr", ascending=False).head(6)
+            display(top_pairs[["Feature 1", "Feature 2", "Correlation"]].round(3))
+
+            n_plots = len(top_pairs)
+            n_rows = math.ceil(n_plots / n_cols)
+            fig, axes = plt.subplots(n_rows, n_cols, figsize=(5 * n_cols, 3.8 * n_rows))
+            axes = axes.flatten() if hasattr(axes, "flatten") else [axes]
+
+            for idx, (_, row) in enumerate(top_pairs.iterrows()):
+                f1, f2, r_val = row["Feature 1"], row["Feature 2"], row["Correlation"]
+                sns.scatterplot(data=df, x=f1, y=f2, alpha=0.6, color="#2563EB", ax=axes[idx])
+                axes[idx].set_title(f"{f1} vs {f2} (r = {r_val:.2f})", fontsize=10)
+
+            for idx in range(n_plots, len(axes)):
+                axes[idx].set_visible(False)
+            plt.tight_layout()
+            plt.show()
