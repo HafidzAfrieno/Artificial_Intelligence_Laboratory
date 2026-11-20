@@ -3,6 +3,7 @@ from typing import Any,Union,Literal,Optional
 from IPython.display import display
 import matplotlib.pyplot as plt
 import pandas as pd
+import numpy as np
 import seaborn as sns
 import math
 
@@ -410,3 +411,96 @@ def bivariate_analysis(df: pd.DataFrame,target_col: Optional[str] = None,task_ty
                 axes[idx].set_visible(False)
             plt.tight_layout()
             plt.show()
+
+def correlation_analysis(df: pd.DataFrame,target_col: Optional[str] = None,method: Literal["pearson", "spearman", "kendall"] = "pearson",corr_threshold: float = 0.7,exclude_cols: Optional[list[str]] = None,
+                         cat_threshold: int = 10,force_cat: Optional[list[str]] = None,force_num: Optional[list[str]] = None,cmap: str = "coolwarm",)->None:
+    """Menganalisis korelasi antar-fitur (multikolinearitas) dan korelasi terhadap target."""
+    if target_col and target_col not in df.columns:
+        raise ValueError(f"Kolom target '{target_col}' tidak ditemukan dalam dataset.")
+
+    excl = list(exclude_cols or [])
+    if target_col:
+        excl.append(target_col)
+
+    num_cols, _ = separate_feature_types(
+        df=df,
+        exclude_cols=excl,
+        cat_threshold=cat_threshold,
+        force_cat=force_cat,
+        force_num=force_num,
+        verbose=False,
+    )
+
+    if len(num_cols) < 2:
+        print("[Info] Minimal dibutuhkan 2 fitur numerik untuk analisis korelasi.")
+        return
+
+    print(f"=== CORRELATION ANALYSIS ({method.upper()}) ===")
+    corr_matrix = df[num_cols].corr(method=method)
+
+    upper_tri = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool))
+    high_corr = (upper_tri.stack().reset_index().rename(columns={"level_0": "Feature 1", "level_1": "Feature 2", 0: "Correlation"}))
+    high_corr["Abs_Corr"] = high_corr["Correlation"].abs()
+    high_corr = high_corr[high_corr["Abs_Corr"] >= corr_threshold].sort_values( by="Abs_Corr", ascending=False)
+
+    print(f"\n[1] Deteksi Multikolinearitas (|r| >= {corr_threshold}):")
+    if not high_corr.empty:
+        display(high_corr[["Feature 1", "Feature 2", "Correlation"]].round(3))
+    else:
+        print(f"Tidak ditemukan pasangan fitur dengan korelasi >= {corr_threshold}.")
+
+    mask = np.triu(np.ones_like(corr_matrix, dtype=bool))
+    fig_size = max(7, len(num_cols) * 0.85)
+    plt.figure(figsize=(fig_size, fig_size * 0.8))
+    sns.heatmap(
+        corr_matrix,
+        mask=mask,
+        annot=True,
+        fmt=".2f",
+        cmap=cmap,
+        vmin=-1,
+        vmax=1,
+        center=0,
+        linewidths=0.5,
+        cbar_kws={"shrink": 0.8},
+    )
+    plt.title(f"Feature Correlation Heatmap ({method.capitalize()})", fontsize=12)
+    plt.tight_layout()
+    plt.show()
+
+    if target_col:
+        target_series = df[target_col]
+        if pd.api.types.is_bool_dtype(target_series):
+            target_series = target_series.astype(int)
+
+        if pd.api.types.is_numeric_dtype(target_series):
+            print(f"\n[2] Korelasi Fitur Numerik terhadap Target '{target_col}':")
+            target_corr = (
+                df[num_cols]
+                .apply(lambda col: col.corr(target_series, method=method))
+                .dropna()
+                .sort_values(key=abs, ascending=False)
+            )
+            target_corr_df = target_corr.to_frame(name=f"{method.capitalize()}_Corr")
+            display(target_corr_df.round(3))
+
+            plt.figure(figsize=(8, max(3.5, len(target_corr) * 0.45)))
+            colors = ["#2563EB" if val >= 0 else "#DC2626" for val in target_corr.values]
+            sns.barplot(
+                x=target_corr.values,
+                y=target_corr.index,
+                hue=target_corr.index,
+                palette=colors,
+                legend=False,
+            )
+            plt.axvline(0, color="black", linewidth=0.8, linestyle="--")
+            plt.title(f"Korelasi Fitur terhadap '{target_col}' ({method.capitalize()})")
+            plt.xlabel("Koefisien Korelasi")
+            plt.ylabel("")
+            plt.tight_layout()
+            plt.show()
+        else:
+            print(
+                f"\n[Info] Korelasi numerik terhadap target '{target_col}' dilewati "
+                "karena target bertipe kategorikal non-numerik (gunakan ANOVA / Boxplot pada Bivariate Analysis)."
+            )
