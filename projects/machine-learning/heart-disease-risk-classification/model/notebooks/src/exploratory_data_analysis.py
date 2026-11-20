@@ -1,9 +1,10 @@
 from pathlib import Path
-from typing import Any,Union,Literal
+from typing import Any,Union,Literal,Optional
 from IPython.display import display
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
+import math
 
 def load_data(file_path:Union[str,Path],**kwargs:Any)->pd.DataFrame:
     """Memuat data secara otomatis dari CSV, JSON, Excel, atau SQL."""
@@ -115,3 +116,159 @@ def target_analysis(df: pd.DataFrame,target_col:str,task_type : Literal["auto", 
             axes[1].set_title(f"Boxplot Outlier: {target_col}")
             plt.tight_layout()
             plt.show()
+
+
+def seperate_feature_types(df: pd.DataFrame,exclude_cols: Optional[list[str]] = None,cat_threshold: int = 10,force_cat: Optional[list[str]] = None,
+                           force_num: Optional[list[str]] = None,verbose: bool = True)->tuple[list[str],list[str]]:
+    """Memisahkan fitur numerik dan kategorikal, termasuk mendeteksi fitur kategorikal yang sudah di-encoding menjadi angka (integer)."""
+    exclude_set = set(exclude_cols or [])
+    force_cat_set = set(force_cat or [])
+    force_num_set = set(force_num or [])
+
+    num_cols: list[str] = []
+    cat_cols: list[str] = []
+    detected_encoded: list[str] = []
+
+    for col in df.columns:
+        if col in exclude_set:
+            continue
+
+        if col in force_num_set:
+            num_cols.append(col)
+            continue
+        if col in force_cat_set:
+            cat_cols.append(col)
+            continue
+        series = df[col].dropna()
+        if pd.api.types.is_bool_dtype(df[col]) or not pd.api.types.is_numeric_dtype(df[col]):
+            cat_cols.append(col)
+            continue
+        n_unique = series.nunique()
+        is_integer_values = (series % 1 == 0).all() if not series.empty else False
+
+        if n_unique <= cat_threshold and is_integer_values:
+            cat_cols.append(col)
+            detected_encoded.append(col)
+        else:
+            num_cols.append(col)
+    if verbose and detected_encoded:
+        print(f"[Info] Fitur numerik terdeteksi sebagai encoded-categorical: {detected_encoded}")
+
+    return num_cols, cat_cols
+
+
+def univariate_analysis(df: pd.DataFrame,exclude_cols: Optional[list[str]] = None,cat_threshold: int = 10,force_cat: Optional[list[str]] = None,
+                        force_num: Optional[list[str]] = None, max_cat_unique: int = 20,n_cols: int = 3,palette: str = "Set2",)->None:
+    """Menganalisis distribusi setiap fitur secara individual (numerik & kategorikal)."""
+    data = df.drop(columns=exclude_cols, errors="ignore") if exclude_cols else df.copy()
+    num_cols,cat_cols = seperate_feature_types(df=df,exclude_cols=exclude_cols,cat_threshold=cat_threshold,force_cat=force_cat,force_num=force_num)
+
+    # 1. Analisis Numerik
+    if num_cols:
+        print(f"=== 1. UNIVARIATE NUMERICAL FEATURES ({len(num_cols)} Fitur) ===")
+        num_summary = []
+        for col in num_cols:
+            series = data[col].dropna()
+            q1, q3 = series.quantile(0.25), series.quantile(0.75)
+            iqr = q3 - q1
+            outliers = ((series < (q1 - 1.5 * iqr)) | (series > (q3 + 1.5 * iqr))).sum()
+            num_summary.append({
+                "Feature": col,
+                "Mean": series.mean(),
+                "Median": series.median(),
+                "Std": series.std(),
+                "Min": series.min(),
+                "Max": series.max(),
+                "Skewness": series.skew(),
+                "Outliers (IQR)": outliers,
+                "Outliers (%)": (outliers / len(series) * 100) if len(series) > 0 else 0,
+            })
+        display(pd.DataFrame(num_summary).set_index("Feature").round(3))
+
+        # Grid Plot: Histogram + KDE
+        n_rows = math.ceil(len(num_cols) / n_cols)
+        fig, axes = plt.subplots(n_rows, n_cols, figsize=(5 * n_cols, 3.8 * n_rows))
+        axes = axes.flatten() if len(num_cols) > 1 else [axes]
+
+        for idx, col in enumerate(num_cols):
+            sns.histplot(data[col].dropna(), kde=True, ax=axes[idx], color="#2563EB")
+            axes[idx].set_title(f"{col} (Skew: {data[col].skew():.2f})", fontsize=10)
+            axes[idx].set_xlabel("")
+
+        for idx in range(len(num_cols), len(axes)):
+            axes[idx].set_visible(False)
+
+        plt.suptitle("Distribusi Fitur Numerik (Histogram & KDE)", fontsize=13, y=1.02)
+        plt.tight_layout()
+        plt.show()
+
+        # Grid Plot: Boxplot (Deteksi Outlier)
+        fig, axes = plt.subplots(n_rows, n_cols, figsize=(5 * n_cols, 2.8 * n_rows))
+        axes = axes.flatten() if len(num_cols) > 1 else [axes]
+
+        for idx, col in enumerate(num_cols):
+            sns.boxplot(x=data[col].dropna(), ax=axes[idx], color="#60A5FA")
+            axes[idx].set_title(f"Boxplot: {col}", fontsize=10)
+            axes[idx].set_xlabel("")
+
+        for idx in range(len(num_cols), len(axes)):
+            axes[idx].set_visible(False)
+
+        plt.suptitle("Deteksi Outlier Fitur Numerik (Boxplot)", fontsize=13, y=1.02)
+        plt.tight_layout()
+        plt.show()
+
+        # 2. Analisis Kategorical
+        if cat_cols:
+            print(f"\n=== 2. UNIVARIATE CATEGORICAL FEATURES ({len(cat_cols)} Fitur) ===")
+            cat_summary = []
+            plot_cats = []
+
+            for col in cat_cols:
+                n_uniq = data[col].nunique(dropna=True)
+                top_val = data[col].mode().iloc[0] if not data[col].mode().empty else None
+                top_freq = (data[col] == top_val).sum() if top_val is not None else 0
+                top_pct = (top_freq / len(data) * 100) if len(data) > 0 else 0
+                is_plotted = n_uniq <= max_cat_unique
+
+                cat_summary.append({
+                    "Feature": col,
+                    "Unique": n_uniq,
+                    "Mode (Modus)": top_val,
+                    "Mode Freq": top_freq,
+                    "Mode (%)": top_pct,
+                    "Plot Status": "Plotted" if is_plotted else f"Skipped (> {max_cat_unique})",
+                })
+
+                if is_plotted:
+                    plot_cats.append(col)
+
+            display(pd.DataFrame(cat_summary).set_index("Feature").round({"Mode (%)": 2}))
+
+            if plot_cats:
+                n_rows = math.ceil(len(plot_cats) / n_cols)
+                fig, axes = plt.subplots(n_rows, n_cols, figsize=(5.5 * n_cols, 3.8 * n_rows))
+                axes = axes.flatten() if len(plot_cats) > 1 else [axes]
+
+                for idx, col in enumerate(plot_cats):
+                    order = data[col].value_counts().index
+                    colors = sns.color_palette(palette, n_colors=len(order))
+                    sns.countplot(
+                        data=data,
+                        y=col,
+                        hue=col,
+                        order=order,
+                        palette=colors,
+                        legend=False,
+                        ax=axes[idx],
+                    )
+                    axes[idx].set_title(f"Distribusi: {col}", fontsize=10)
+                    axes[idx].set_ylabel("")
+
+                for idx in range(len(plot_cats), len(axes)):
+                    axes[idx].set_visible(False)
+
+                plt.suptitle("Distribusi Fitur Kategorikal (Countplot)", fontsize=13, y=1.02)
+                plt.tight_layout()
+                plt.show()
+
