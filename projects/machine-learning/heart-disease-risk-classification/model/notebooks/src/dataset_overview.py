@@ -1,6 +1,7 @@
 from pathlib import Path
-from typing import Any,Union,Literal
+from typing import Any,Union,Literal,Optional
 from IPython.display import display
+from src.exploratory_data_analysis import separate_feature_types
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
@@ -22,7 +23,11 @@ def load_data(file_path:Union[str,Path],**kwargs:Any)->pd.DataFrame:
         raise ValueError(f"Format '{ext}' tidak didukung. Gunakan CSV, JSON, atau Excel.")
     return result
 
-def data_understanding(df:pd.DataFrame)->None:
+def data_understanding(df:pd.DataFrame,exclude_cols: Optional[list[str]] = None,
+    cat_threshold: int = 10,
+    force_cat: Optional[list[str]] = None,
+    force_num: Optional[list[str]] = None,
+    verbose: bool = True,)->None:
     """Menampilkan overview struktur, dimensi, tipe data, dan statistik deskriptif dataset."""
     print("=== 1. SHAPE & DATA TYPES ===")
     print(f"Jumlah Baris  : {df.shape[0]}")
@@ -41,14 +46,20 @@ def data_understanding(df:pd.DataFrame)->None:
     display(df.head())
 
     print("\n=== 3. STATISTICAL SUMMARY ===")
-    num_cols = df.select_dtypes(include='number')
-    if not num_cols.empty:
-        print("Fitur Numerik")
-        display(num_cols.describe().T)
-    cat_cols = df.select_dtypes(exclude='number')
-    if not cat_cols.empty:
+    num_cols, cat_cols = separate_feature_types(
+        df=df,
+        exclude_cols=exclude_cols,
+        cat_threshold=cat_threshold,
+        force_cat=force_cat,
+        force_num=force_num,
+        verbose=verbose,
+    )
+    if num_cols:
+        print("Fitur Numerik:")
+        display(df[num_cols].describe().T)
+    if cat_cols:
         print("Fitur Kategorikal / Non-Numerik:")
-        display(cat_cols.describe().T)
+        display(df[cat_cols].astype("category").describe().T)
 
 def target_analysis(df: pd.DataFrame,target_col:str,task_type : Literal["auto", "classification", "regression"] = "auto",
                     plot: bool = True,palette: str = "Set2")->None:

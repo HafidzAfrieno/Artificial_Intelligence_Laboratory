@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 from IPython.display import display
-from exploratory_data_analysis import separate_feature_types
+from src.exploratory_data_analysis import separate_feature_types
 from typing import Dict, List, Optional, Union, Tuple
 import matplotlib.pyplot as plt
 
@@ -91,10 +91,11 @@ def analyze_duplicates(df: pd.DataFrame, subset_cols: list = None, plot: bool = 
 
     return dup_records
 
-def analyze_outliers(df: pd.DataFrame, plot: bool = True) -> pd.DataFrame:
+def analyze_outliers(df: pd.DataFrame,plot: bool = True,exclude_cols: Optional[list[str]] = None,cat_threshold: int = 10,force_cat: Optional[list[str]] = None,
+                     force_num: Optional[list[str]] = None,verbose: bool = False,) -> pd.DataFrame:
     """Mengidentifikasi outlier pada kolom numerik menggunakan metode IQR (Interquartile Range)."""
 
-    num_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+    num_cols, _ = separate_feature_types(df=df,exclude_cols=exclude_cols,cat_threshold=cat_threshold,force_cat=force_cat,force_num=force_num,verbose=verbose,)
     if not num_cols:
         print("Tidak ada kolom numerik untuk dianalisis.\n")
         return pd.DataFrame()
@@ -142,7 +143,8 @@ def analyze_outliers(df: pd.DataFrame, plot: bool = True) -> pd.DataFrame:
 
     return outlier_df
 
-def analyze_inconsistency(df: pd.DataFrame, max_unique_display: int = 15) -> dict:
+def analyze_inconsistency(df: pd.DataFrame,max_unique_display: int = 15,exclude_cols: Optional[list[str]] = None,cat_threshold: int = 10,force_cat: Optional[list[str]] = None,
+                          force_num: Optional[list[str]] = None,verbose: bool = False,) -> dict:
     """
     Mendeteksi ketidakkonsistenan data:
     1. Perbedaan huruf besar/kecil (case sensitivity) & spasi berlebih pada kolom teks.
@@ -186,7 +188,7 @@ def analyze_inconsistency(df: pd.DataFrame, max_unique_display: int = 15) -> dic
             "unique_values": list(unique_raw[:max_unique_display])
         }
 
-    num_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+    num_cols, _ = separate_feature_types(df=df,exclude_cols=exclude_cols,cat_threshold=cat_threshold,force_cat=force_cat,force_num=force_num,verbose=verbose,)
     for col in num_cols:
         neg_count = (df[col] < 0).sum()
         if neg_count > 0:
@@ -200,7 +202,6 @@ def analyze_inconsistency(df: pd.DataFrame, max_unique_display: int = 15) -> dic
 
     return report
 
-# masih perlu diperbaiki lagi
 
 def convert_data_types(df: pd.DataFrame,dtype_map: Optional[Dict[str, str]] = None,date_cols: Optional[List[str]] = None,verbose: bool = True) -> pd.DataFrame:
     """Memperbaiki tipe data kolom (numerik, kategorikal, dan datetime)."""
@@ -244,47 +245,152 @@ def handle_duplicates(df: pd.DataFrame,subset: Optional[List[str]] = None,keep: 
 
     return data
 
-def handle_missing_values(df: pd.DataFrame, strategy: Optional[Dict[str, Union[str, int, float]]] = None, drop_col_thresh: float = 0.5, verbose: bool = True) -> pd.DataFrame:
-    """Menangani missing values per kolom dengan imputasi atau penghapusan."""
+def handle_missing_values(df: pd.DataFrame,strategy: Optional[Dict[str, Union[str, int, float]]] = None,drop_col_thresh: float = 0.51,skew_thresh: float = 0.5,exclude_cols: Optional[list[str]] = None,cat_threshold: int = 10,force_cat: Optional[list[str]] = None,
+                           force_num: Optional[list[str]] = None, verbose: bool = True) -> pd.DataFrame:
+    """
+    Menangani missing values dengan parameter yang selaras dengan separate_feature_types():
+    1. Hapus kolom (numerik & kategori) jika missing > 51% (0.51).
+    2. Fitur numerik (num_cols): Mean jika distribusi normal (|skew| <= 0.5), Median jika tidak normal.
+    3. Fitur kategori (cat_cols, termasuk encoded-categorical): Mode.
+    """
     data = df.copy()
     strategy = strategy or {}
     logs = []
+    total_rows = len(data)
+
+    if total_rows == 0:
+        return data
+
+    num_cols, cat_cols = separate_feature_types(df=data,exclude_cols=exclude_cols,cat_threshold=cat_threshold,force_cat=force_cat,force_num=force_num,verbose=verbose)
+    num_cols_set = set(num_cols)
+    cat_cols_set = set(cat_cols)
+    exclude_set = set(exclude_cols or [])
 
     for col in list(data.columns):
+        if col in exclude_set:
+            continue
+
         missing_count = data[col].isna().sum()
         if missing_count == 0:
             continue
 
-        if col not in strategy and (missing_count / len(data)) > drop_col_thresh:
+        missing_ratio = missing_count / total_rows
+
+        if col not in strategy and missing_ratio > drop_col_thresh:
             data = data.drop(columns=[col])
-            logs.append(f"{col}: kolom dihapus (>{drop_col_thresh*100:.0f}% kosong)")
+            logs.append(
+                f"{col}: kolom dihapus ({missing_ratio*100:.1f}% > {drop_col_thresh*100:.0f}% kosong)"
+            )
             continue
 
         col_strategy = strategy.get(col)
+        dist_note = ""
+
+        # Aturan otomatis saat strategy=None
         if col_strategy is None:
-            col_strategy = 'median' if pd.api.types.is_numeric_dtype(data[col]) else 'mode'
+            if col in num_cols_set:
+                skew_val = data[col].skew()
+                if pd.notna(skew_val) and abs(skew_val) <= skew_thresh:
+                    col_strategy = 'mean'
+                    dist_note = f" [numerik normal, skew={skew_val:.2f}]"
+                else:
+                    col_strategy = 'median'
+                    skew_str = f"{skew_val:.2f}" if pd.notna(skew_val) else "N/A"
+                    dist_note = f" [numerik tidak normal, skew={skew_str}]"
+            elif col in cat_cols_set:
+                col_strategy = 'mode'
+                dist_note = " [kategori]"
 
         if col_strategy == 'drop':
             data = data.dropna(subset=[col]).reset_index(drop=True)
             logs.append(f"{col}: hapus {missing_count} baris")
         elif col_strategy == 'mean':
             val = data[col].mean()
-            data[col] = data[col].fillna(val)
-            logs.append(f"{col}: imputasi mean ({val:.2f})")
+            data[col] = data[col].astype('float64').fillna(val)
+            logs.append(f"{col}: imputasi mean ({val:.2f}){dist_note}")
         elif col_strategy == 'median':
             val = data[col].median()
             data[col] = data[col].fillna(val)
-            logs.append(f"{col}: imputasi median ({val:.2f})")
+            logs.append(f"{col}: imputasi median ({val:.2f}){dist_note}")
         elif col_strategy == 'mode':
-            val = data[col].mode()[0] if not data[col].mode().empty else "Unknown"
+            mode_series = data[col].mode()
+            val = mode_series[0] if not mode_series.empty else "Unknown"
             data[col] = data[col].fillna(val)
-            logs.append(f"{col}: imputasi mode ({val})")
+            logs.append(f"{col}: imputasi mode ({val}){dist_note}")
         else:
             data[col] = data[col].fillna(col_strategy)
             logs.append(f"{col}: imputasi konstan ({col_strategy})")
 
     if verbose:
-        print(f"[Missing Values] {', '.join(logs) if logs else 'Tidak ada missing value'}")
+        if logs:
+            print("[Missing Values]")
+            for log in logs:
+                print(f"  - {log}")
+        else:
+            print("[Missing Values] Tidak ada missing value.")
+
+    return data
+
+# besok menganalisa fungsi handle_outliers
+
+def handle_outliers(
+    df: pd.DataFrame,
+    cols: List[str],
+    method: str = 'iqr',
+    action: str = 'cap',
+    factor: float = 1.5,
+    custom_bounds: Optional[Dict[str, Tuple[Optional[float], Optional[float]]]] = None,
+    verbose: bool = True
+) -> pd.DataFrame:
+    """
+    Menangani outlier berdasarkan statistik (IQR/Z-Score) atau aturan domain (custom_bounds).
+    
+    Parameters:
+    -----------
+    custom_bounds : dict, optional
+        Batas manual sesuai konteks bisnis, misal: {'umur': (0, 100), 'harga': (1000, None)}
+    """
+    data = df.copy()
+    custom_bounds = custom_bounds or {}
+    logs = []
+
+    for col in cols:
+        if col not in data.columns or not pd.api.types.is_numeric_dtype(data[col]):
+            continue
+
+        if col in custom_bounds:
+            lower_bound, upper_bound = custom_bounds[col]
+            lower_bound = lower_bound if lower_bound is not None else data[col].min()
+            upper_bound = upper_bound if upper_bound is not None else data[col].max()
+        elif method == 'iqr':
+            Q1 = data[col].quantile(0.25)
+            Q3 = data[col].quantile(0.75)
+            IQR = Q3 - Q1
+            lower_bound = Q1 - (factor * IQR)
+            upper_bound = Q3 + (factor * IQR)
+        elif method == 'zscore':
+            mean = data[col].mean()
+            std = data[col].std()
+            lower_bound = mean - (factor * std)
+            upper_bound = mean + (factor * std)
+        else:
+            raise ValueError("Parameter 'method' harus 'iqr' atau 'zscore'.")
+
+        outlier_mask = (data[col] < lower_bound) | (data[col] > upper_bound)
+        num_outliers = outlier_mask.sum()
+
+        if num_outliers > 0:
+            if action == 'cap':
+                data[col] = np.clip(data[col], lower_bound, upper_bound)
+                logs.append(f"{col}: {num_outliers} nilai di-cap ke [{lower_bound:.2f}, {upper_bound:.2f}]")
+            elif action == 'drop':
+                data = data[~outlier_mask].reset_index(drop=True)
+                logs.append(f"{col}: {num_outliers} baris outlier dihapus")
+            else:
+                raise ValueError("Parameter 'action' harus 'cap' atau 'drop'.")
+
+    if verbose:
+        print(f"[Outlier Handling] {', '.join(logs) if logs else 'Tidak ada outlier terdeteksi'}")
 
     return data
 
