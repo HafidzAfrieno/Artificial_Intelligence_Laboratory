@@ -1,9 +1,11 @@
 import pandas as pd
 import numpy as np
 import seaborn as sns
+import io
 from IPython.display import display
 from src.exploratory_data_analysis import separate_feature_types
-from typing import Dict, List, Optional, Union, Tuple
+from typing import Dict, List, Literal, Optional, Tuple, Union
+from pathlib import Path
 import matplotlib.pyplot as plt
 
 sns.set_theme(style="whitegrid")
@@ -333,15 +335,7 @@ def handle_missing_values(df: pd.DataFrame,strategy: Optional[Dict[str, Union[st
 
 # besok menganalisa fungsi handle_outliers
 
-def handle_outliers(
-    df: pd.DataFrame,
-    cols: List[str],
-    method: str = 'iqr',
-    action: str = 'cap',
-    factor: float = 1.5,
-    custom_bounds: Optional[Dict[str, Tuple[Optional[float], Optional[float]]]] = None,
-    verbose: bool = True
-) -> pd.DataFrame:
+def handle_outliers( df: pd.DataFrame,cols: List[str],method: str = 'iqr',action: str = 'cap',factor: float = 1.5,custom_bounds: Optional[Dict[str, Tuple[Optional[float], Optional[float]]]] = None,verbose: bool = True) -> pd.DataFrame:
     """
     Menangani outlier berdasarkan statistik (IQR/Z-Score) atau aturan domain (custom_bounds).
     
@@ -394,3 +388,78 @@ def handle_outliers(
 
     return data
 
+path_folder = "../data/processed"
+def save_cleaned_data(df: pd.DataFrame,filename: str,folder_path: str = path_folder,file_format: Literal["csv", "excel", "json"] = "csv",verbose: bool = True) -> pd.DataFrame:
+    """Menyimpan DataFrame bersih dengan akhiran '_CLEAN', melewati jika isi sama, atau memperbarui jika berubah."""
+    target_dir = Path(folder_path)
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    base_name = Path(filename).stem
+    if not base_name.endswith("_CLEAN"):
+        base_name = f"{base_name}_CLEAN"
+
+    fmt = file_format.lower().strip()
+
+    if fmt == "csv":
+        full_path = target_dir / f"{base_name}.csv"
+        new_content = df.to_csv(index=False, lineterminator="\n")
+
+        if full_path.exists():
+            old_content = full_path.read_text(encoding="utf-8").replace("\r\n", "\n")
+            if old_content == new_content:
+                if verbose:
+                    print("[Save Data] file yang sama sudah dibuat")
+                return df
+            full_path.write_text(new_content, encoding="utf-8")
+            if verbose:
+                print("[Save Data] file sudah di update")
+        else:
+            full_path.write_text(new_content, encoding="utf-8")
+            if verbose:
+                print(f"[Save Data] Berhasil disimpan ke: {full_path.resolve()}")
+
+    elif fmt in ("excel", "xlsx"):
+        full_path = target_dir / f"{base_name}.xlsx"
+
+        if full_path.exists():
+            buf = io.BytesIO()
+            df.to_excel(buf, index=False)
+            buf.seek(0)
+
+            existing_df = pd.read_excel(full_path)
+            new_df_parsed = pd.read_excel(buf)
+
+            if existing_df.equals(new_df_parsed):
+                if verbose:
+                    print("[Save Data] file yang sama sudah dibuat")
+                return df
+            df.to_excel(full_path, index=False)
+            if verbose:
+                print("[Save Data] file sudah di update")
+        else:
+            df.to_excel(full_path, index=False)
+            if verbose:
+                print(f"[Save Data] Berhasil disimpan ke: {full_path.resolve()}")
+
+    elif fmt == "json":
+        full_path = target_dir / f"{base_name}.json"
+        new_content = df.to_json(orient="records", indent=4, date_format="iso")
+
+        if full_path.exists():
+            old_content = full_path.read_text(encoding="utf-8").replace("\r\n", "\n")
+            if old_content == new_content.replace("\r\n", "\n"):
+                if verbose:
+                    print("[Save Data] file yang sama sudah dibuat")
+                return df
+            full_path.write_text(new_content, encoding="utf-8")
+            if verbose:
+                print("[Save Data] file sudah di update")
+        else:
+            full_path.write_text(new_content, encoding="utf-8")
+            if verbose:
+                print(f"[Save Data] Berhasil disimpan ke: {full_path.resolve()}")
+
+    else:
+        raise ValueError("Format file tidak didukung. Pilih antara 'csv', 'excel', atau 'json'.")
+
+    return df
