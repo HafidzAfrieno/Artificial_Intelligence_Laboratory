@@ -7,6 +7,7 @@ import numpy as np
 import seaborn as sns
 import math
 
+sns.set_theme(style="whitegrid")
 
 def separate_feature_types(df: pd.DataFrame,exclude_cols: Optional[list[str]] = None,cat_threshold: int = 10,force_cat: Optional[list[str]] = None,
                            force_num: Optional[list[str]] = None,verbose: bool = True)->tuple[list[str],list[str]]:

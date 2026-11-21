@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 from IPython.display import display
+from exploratory_data_analysis import separate_feature_types
+from typing import Dict, List, Optional, Union, Tuple
 import matplotlib.pyplot as plt
 
 sns.set_theme(style="whitegrid")
@@ -199,3 +201,90 @@ def analyze_inconsistency(df: pd.DataFrame, max_unique_display: int = 15) -> dic
     return report
 
 # masih perlu diperbaiki lagi
+
+def convert_data_types(df: pd.DataFrame,dtype_map: Optional[Dict[str, str]] = None,date_cols: Optional[List[str]] = None,verbose: bool = True) -> pd.DataFrame:
+    """Memperbaiki tipe data kolom (numerik, kategorikal, dan datetime)."""
+    data = df.copy()
+    converted = []
+
+    if date_cols:
+        for col in date_cols:
+            if col in data.columns:
+                data[col] = pd.to_datetime(data[col], errors='coerce')
+                converted.append(f"{col} -> datetime64")
+
+    if dtype_map:
+        for col, target_type in dtype_map.items():
+            if col in data.columns:
+                if 'int' in target_type or 'float' in target_type:
+                    if data[col].dtype == 'object':
+                        data[col] = data[col].astype(str).str.replace(r'[^\d.-]', '', regex=True)
+                    data[col] = pd.to_numeric(data[col], errors='coerce')
+                    if 'int' in target_type:
+                        data[col] = data[col].astype('Int64')
+                else:
+                    data[col] = data[col].astype(target_type)
+                converted.append(f"{col} -> {target_type}")
+
+    if verbose:
+        print(f"[Type Conversion] Kolom dikonversi: {converted if converted else 'Tidak ada'}")
+
+    return data
+
+def handle_duplicates(df: pd.DataFrame,subset: Optional[List[str]] = None,keep: Union[str, bool] = 'first',verbose: bool = True) -> pd.DataFrame:
+    """Menghapus data duplikat berdasarkan seluruh kolom atau subset kolom tertentu."""
+    data = df.copy()
+    initial_rows = len(data)
+    
+    data = data.drop_duplicates(subset=subset, keep=keep).reset_index(drop=True)
+    removed = initial_rows - len(data)
+
+    if verbose:
+        print(f"[Duplicate Handling] Dihapus {removed} baris duplikat (Sisa: {len(data)} baris)")
+
+    return data
+
+def handle_missing_values(df: pd.DataFrame, strategy: Optional[Dict[str, Union[str, int, float]]] = None, drop_col_thresh: float = 0.5, verbose: bool = True) -> pd.DataFrame:
+    """Menangani missing values per kolom dengan imputasi atau penghapusan."""
+    data = df.copy()
+    strategy = strategy or {}
+    logs = []
+
+    for col in list(data.columns):
+        missing_count = data[col].isna().sum()
+        if missing_count == 0:
+            continue
+
+        if col not in strategy and (missing_count / len(data)) > drop_col_thresh:
+            data = data.drop(columns=[col])
+            logs.append(f"{col}: kolom dihapus (>{drop_col_thresh*100:.0f}% kosong)")
+            continue
+
+        col_strategy = strategy.get(col)
+        if col_strategy is None:
+            col_strategy = 'median' if pd.api.types.is_numeric_dtype(data[col]) else 'mode'
+
+        if col_strategy == 'drop':
+            data = data.dropna(subset=[col]).reset_index(drop=True)
+            logs.append(f"{col}: hapus {missing_count} baris")
+        elif col_strategy == 'mean':
+            val = data[col].mean()
+            data[col] = data[col].fillna(val)
+            logs.append(f"{col}: imputasi mean ({val:.2f})")
+        elif col_strategy == 'median':
+            val = data[col].median()
+            data[col] = data[col].fillna(val)
+            logs.append(f"{col}: imputasi median ({val:.2f})")
+        elif col_strategy == 'mode':
+            val = data[col].mode()[0] if not data[col].mode().empty else "Unknown"
+            data[col] = data[col].fillna(val)
+            logs.append(f"{col}: imputasi mode ({val})")
+        else:
+            data[col] = data[col].fillna(col_strategy)
+            logs.append(f"{col}: imputasi konstan ({col_strategy})")
+
+    if verbose:
+        print(f"[Missing Values] {', '.join(logs) if logs else 'Tidak ada missing value'}")
+
+    return data
+
