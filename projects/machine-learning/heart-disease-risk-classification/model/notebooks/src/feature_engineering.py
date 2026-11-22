@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple,Any
 
 def create_features_engineering(
     df: pd.DataFrame,
@@ -23,7 +23,6 @@ def create_features_engineering(
     """
     data = df.copy()
 
-    # 1. Interaksi antar fitur numerik
     if interactions:
         for col_a, col_b, op in interactions:
             if op == "add":
@@ -35,12 +34,10 @@ def create_features_engineering(
             else:
                 raise ValueError(f"Operasi '{op}' tidak didukung. Gunakan 'add', 'sub', atau 'mul'.")
 
-    # 2. Rasio antar fitur (aman dari pembagian nol dengan eps)
     if ratios:
         for num_col, den_col, new_name in ratios:
             data[new_name] = data[num_col] / (data[den_col] + eps)
 
-    # 3. Ekstraksi komponen waktu
     if date_cols:
         for col in date_cols:
             dt_series = pd.to_datetime(data[col])
@@ -65,3 +62,4 @@ def create_features_engineering(
             data[new_col] = func(data)
 
     return data
+
